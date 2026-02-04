@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>
+      Tap Leaderboard
+    </title>
+    <style>
+      * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, Arial; height: 100vh; background:#fafafa; }
+
+    header{
+      position: fixed; top: 0; left: 0; right: 0;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px; background: #fff; border-bottom: 1px solid #eee;
+      z-index: 10;
+    }
+    .brand{ font-weight: 800; }
+    nav{ display:flex; gap:12px; align-items:center; }
+    nav a{ text-decoration:none; color:#111; padding:6px 10px; border-radius:10px; }
+    nav a:hover{ background:#f3f3f3; }
+    .pill{ font-size: 12px; opacity: .7; }
+
+    main{
+      height: 100vh;
+      display: grid;
+      place-items: center;
+      padding-top: 54px;
+      user-select: none;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+    main.blocked{ cursor: not-allowed; }
+
+    .card{
+      position: relative;
+      text-align:center;
+      padding: 24px;
+      border: 1px solid #eee;
+      border-radius: 18px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.07);
+      max-width: 520px;
+      width: calc(100% - 48px);
+      background: #fff;
+      z-index: 5;
+    }
+    .name{ font-size: 22px; font-weight: 800; margin-top: 4px; }
+
+    .countWrap{
+      position: relative;
+      margin: 14px auto 8px;
+      width: 280px;
+      height: 160px;
+      display: grid;
+      place-items: center;
+    }
+    .count{
+      font-size: 72px;
+      font-weight: 950;
+      margin: 0;
+      line-height: 1;
+    }
+    .hint { opacity:.7; margin-top: 10px; }
+
+    /* WARNING */
+    .warning{
+      position: fixed;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-weight: 950;
+      font-size: 34px;
+      letter-spacing: 1px;
+      padding: 10px 18px;
+      border-radius: 999px;
+      color: #111;
+      background: #ffe66b;
+      border: 2px solid #111;
+      box-shadow: 0 10px 26px rgba(0,0,0,.16);
+      z-index: 50;
+      display: none;
+    }
+    .warning.show{ display:block; animation: pop .18s ease-out; }
+    @keyframes pop {
+      from{ transform: translateX(-50%) scale(.92); opacity:.2 }
+      to{ transform: translateX(-50%) scale(1); opacity:1 }
+    }
+
+    .duckInstruction{
+      position: fixed;
+      top: 112px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 50;
+      display: none;
+      font-weight: 950;
+      font-size: 15px;
+      background: rgba(255,255,255,.97);
+      border: 1px solid #eee;
+      border-radius: 999px;
+      padding: 8px 12px;
+      box-shadow: 0 8px 20px rgba(0,0,0,.10);
+      white-space: nowrap;
+      text-align: center;
+    }
+    .duckInstruction.show{ display:block; }
+
+    /* Pet countdown badge */
+    .petBadge{
+      position: fixed;
+      top: 162px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 55;
+      display: none;
+      font-weight: 900;
+      font-size: 13px;
+      background: rgba(255,255,255,.97);
+      border: 1px solid #eee;
+      border-radius: 999px;
+      padding: 8px 12px;
+      box-shadow: 0 8px 20px rgba(0,0,0,.10);
+      white-space: nowrap;
+    }
+    .petBadge.show{ display:block; }
+
+    /* Shake the score box */
+    .shake{
+      animation: shake 240ms ease-in-out;
+    }
+    @keyframes shake{
+      0% { transform: translateX(0) }
+      20%{ transform: translateX(-6px) }
+      40%{ transform: translateX(6px) }
+      60%{ transform: translateX(-5px) }
+      80%{ transform: translateX(5px) }
+      100%{ transform: translateX(0) }
+    }
+
+    /* Layer for roaming critters (goose) */
+    .duckLayer{
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 25;
+    }
+
+    /* DUCK/GOOSE BASE */
+    .duck{
+      position: absolute;
+      pointer-events: auto;
+      cursor: pointer;
+      user-select: none;
+      will-change: transform, left, top, opacity;
+    }
+
+    /* Body + legs (cute) */
+    .duck .body{
+      display: inline-block;
+      font-size: 44px;
+      filter: drop-shadow(0 10px 14px rgba(0,0,0,.15));
+      line-height: 1;
+    }
+    .duck .legs{
+      position: relative;
+      display: block;
+      height: 14px;
+      width: 44px;
+      margin: -2px auto 0;
+    }
+    .duck .legs::before,
+    .duck .legs::after{
+      content: &#34;&#34;;
+      position: absolute;
+      top: 0;
+      width: 10px;
+      height: 12px;
+      border-left: 3px solid #222;
+      border-bottom: 3px solid #222;
+      border-radius: 2px;
+      transform: rotate(10deg);
+    }
+    .duck .legs::before{ left: 12px; }
+    .duck .legs::after{ right: 12px; transform: rotate(-10deg); }
+
+    /* Hugging spots around the counter */
+    .hug1{ top: 18px; left: 8px; transform: rotate(-10deg); }
+    .hug2{ top: 10px; right: 10px; transform: rotate(12deg); }
+    .hug3{ bottom: 10px; left: 18px; transform: rotate(10deg); }
+    .hug4{ bottom: 8px; right: 18px; transform: rotate(-8deg); }
+    .hug5{ top: 52px; left: -6px; transform: rotate(-2deg); }
+
+    /* Walking in animation (from offscreen to a target spot) */
+    .walking{
+      animation: walkIn 950ms ease-out forwards;
+    }
+    @keyframes walkIn{
+      0%   { transform: translate(var(--fromX), var(--fromY)) scale(.95); opacity: .8; }
+      100% { transform: translate(0,0) scale(1); opacity: 1; }
+    }
+
+    /* Walk away (sad) */
+    .leaving{
+      animation: walkAway 900ms ease-in forwards;
+    }
+    @keyframes walkAway{
+      0%   { opacity: 1; transform: translate(0,0) scale(1); }
+      70%  { opacity: 1; transform: translate(90px,-40px) scale(.95); }
+      100% { opacity: 0; transform: translate(160px,-90px) scale(.85); }
+    }
+
+    /* Tiny toast */
+    .toast{
+      position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+      background: #111; color:#fff; padding:10px 14px; border-radius: 999px;
+      font-size: 13px; opacity: 0; pointer-events:none; transition: opacity .2s;
+      z-index: 60;
+    }
+    .toast.show{ opacity: 1; }
+
+    /* --- Golden goose --- */
+    .goose .body{ font-size: 46px; }
+    .golden .body{ text-shadow: 0 0 14px rgba(255, 200, 0, .9); }
+
+    .roaming{ animation: roam 1400ms linear infinite; }
+    @keyframes roam{
+      0%   { transform: translate(0,0) }
+      25%  { transform: translate(120px,-40px) }
+      50%  { transform: translate(40px,120px) }
+      75%  { transform: translate(-110px,30px) }
+      100% { transform: translate(0,0) }
+    }
+
+    .pet{ animation: petBounce 700ms ease-in-out infinite; }
+    @keyframes petBounce{
+      0%,100% { transform: translate(0,0) scale(1) }
+      50%     { transform: translate(0,-8px) scale(1.03) }
+    }
+
+    /* --- Aggressive red duck --- */
+    .madDuck .body{
+      text-shadow: 0 0 14px rgba(255,0,0,.65);
+      filter: drop-shadow(0 12px 16px rgba(255,0,0,.18));
+    }
+    .lazyWalk{ animation: lazyIn 1800ms ease-out forwards; }
+    @keyframes lazyIn{
+      0%   { transform: translate(var(--fromX), var(--fromY)) scale(.96); opacity:.85; }
+      100% { transform: translate(0,0) scale(1); opacity:1; }
+    }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="brand">
+        Tap Leaderboard
+      </div>
+      <nav>
+        <a href="index.html">        Home
+</a>
+        <a href="leaderboard.html">        Leaderboard
+</a>
+        <span class="pill" id="navUser"></span>
+        <a href="auth.html" id="authLink">        Login / Sign up
+</a>
+        <a href="#" id="logoutLink" style="display:none;">        Logout
+</a>
+      </nav>
+    </header>
+    <div class="warning" id="warning">
+      DUCKS INVADING!!
+    </div>
+    <div class="duckInstruction" id="instruction">
+      <b>      TAP / HIT / TOUCH / SLAP / SMACK / TAP THE DUCK TO LEAVE :(
+</b>
+      <br />
+      (Golden goose:
+      <b>      DOUBLE
+</b>
+      -click) • (Red duck:
+      <b>      TRIPLE
+</b>
+      -click)
+    </div>
+    <div class="petBadge" id="petBadge">
+      PET ACTIVE: 3:00
+    </div>
+    <main id="tapArea">
+      <div class="duckLayer" id="duckLayer">
+      </div>
+      <div class="card">
+        <div class="pill" id="statusLine">
+          Not logged in
+        </div>
+        <div class="name" id="displayName">
+          Guest
+        </div>
+        <div class="countWrap" id="countWrap">
+          <div class="count" id="count">
+            0
+          </div>
+        </div>
+        <div class="hint" id="hint">
+          Log in to be counted on the leaderboard.
+        </div>
+      </div>
+    </main>
+    <div class="toast" id="toast">
+    </div>
+    <script>
+      // --------- localStorage ----------
+    const LS_USERS = &#34;tap_users&#34;;
+    const LS_SESSION = &#34;tap_session&#34;;
+    function loadUsers(){ return JSON.parse(localStorage.getItem(LS_USERS) || &#34;{}&#34;); }
+    function saveUsers(users){ localStorage.setItem(LS_USERS, JSON.stringify(users)); }
+    function getSession(){ return JSON.parse(localStorage.getItem(LS_SESSION) || &#34;null&#34;); }
+    function clearSession(){ localStorage.removeItem(LS_SESSION); }
+
+    // --------- Admin ----------
+    const ADMIN_USERNAME = &#34;yamoon&#34;;
+    function isAdmin(){
+      const sess = getSession();
+      return !!(sess &amp;&amp; sess.username === ADMIN_USERNAME);
+    }
+
+    // --------- UI refs ----------
+    const tapArea = document.getElementById(&#34;tapArea&#34;);
+    const duckLayer = document.getElementById(&#34;duckLayer&#34;);
+    const warning = document.getElementById(&#34;warning&#34;);
+    const instruction = document.getElementById(&#34;instruction&#34;);
+    const countWrap = document.getElementById(&#34;countWrap&#34;);
+
+    const navUser = document.getElementById(&#34;navUser&#34;);
+    const authLink = document.getElementById(&#34;authLink&#34;);
+    const logoutLink = document.getElementById(&#34;logoutLink&#34;);
+
+    const statusLine = document.getElementById(&#34;statusLine&#34;);
+    const displayNameEl = document.getElementById(&#34;displayName&#34;);
+    const countEl = document.getElementById(&#34;count&#34;);
+    const hintEl = document.getElementById(&#34;hint&#34;);
+
+    const toast = document.getElementById(&#34;toast&#34;);
+    const petBadge = document.getElementById(&#34;petBadge&#34;);
+
+    function showToast(msg){
+      toast.textContent = msg;
+      toast.classList.add(&#34;show&#34;);
+      setTimeout(() =&gt; toast.classList.remove(&#34;show&#34;), 900);
+    }
+
+    function shakeScore(){
+      countWrap.classList.remove(&#34;shake&#34;);
+      // reflow trick
+      void countWrap.offsetWidth;
+      countWrap.classList.add(&#34;shake&#34;);
+    }
+
+    // --------- Duck invasion logic ----------
+    const TAP_STEP = 75;
+    const DUCKS_PER_INVASION = 3;
+
+    const GOOSE_CHANCE = 0.10;     // 10%
+    const MAD_DUCK_CHANCE = 0.12;  // 12%
+
+    function chance(p){ return Math.random() &lt; p; }
+
+    // Triple click helper
+    function makeTripleClickHandler(onTriple){
+      let clicks = 0;
+      let timer = null;
+      return (e) =&gt; {
+        e.stopPropagation();
+        clicks++;
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() =&gt; { clicks = 0; }, 650);
+        if (clicks &gt;= 3){
+          clicks = 0;
+          if (timer) clearTimeout(timer);
+          onTriple();
+        }
+      };
+    }
+
+    let lastSpawnCheckpoint = 0;
+
+    let critters = [];            // active critters (ducks + goose)
+    let lockAfterArrival = false; // invasion started; lock after arrival/hug
+    let blocked = false;          // background locked
+
+    function setBlocked(isBlocked){
+      if (isAdmin()){
+        blocked = false;
+        tapArea.classList.remove(&#34;blocked&#34;);
+        warning.classList.remove(&#34;show&#34;);
+        instruction.classList.remove(&#34;show&#34;);
+        return;
+      }
+      blocked = isBlocked;
+      tapArea.classList.toggle(&#34;blocked&#34;, blocked);
+      warning.classList.toggle(&#34;show&#34;, blocked);
+      instruction.classList.toggle(&#34;show&#34;, blocked);
+    }
+
+    function activeCritterCount(){ return critters.length; }
+    function pickHugClass(i){
+      const classes = [&#34;hug1&#34;,&#34;hug2&#34;,&#34;hug3&#34;,&#34;hug4&#34;,&#34;hug5&#34;];
+      return classes[i % classes.length];
+    }
+
+    function createSadSound(){
+      // simple &#34;sad&#34; descending beep
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = &#34;triangle&#34;;
+      o.frequency.setValueAtTime(420, ctx.currentTime);
+      o.frequency.exponentialRampToValueAtTime(180, ctx.currentTime + 0.22);
+      g.gain.setValueAtTime(0.0001, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.26);
+      o.connect(g); g.connect(ctx.destination);
+      o.start();
+      o.stop(ctx.currentTime + 0.28);
+      o.onended = () =&gt; ctx.close();
+    }
+
+    // --------- Goose pet countdown ----------
+    let petEndAt = 0;
+    let petTimer = null;
+
+    function fmtTime(ms){
+      const s = Math.max(0, Math.floor(ms / 1000));
+      const m = Math.floor(s / 60);
+      const r = s % 60;
+      return `${m}:${String(r).padStart(2,&#34;0&#34;)}`;
+    }
+
+    function startPetCountdown(){
+      petBadge.classList.add(&#34;show&#34;);
+      if (petTimer) clearInterval(petTimer);
+      petTimer = setInterval(() =&gt; {
+        const left = petEndAt - Date.now();
+        if (left &lt;= 0){
+          petBadge.classList.remove(&#34;show&#34;);
+          clearInterval(petTimer);
+          petTimer = null;
+          return;
+        }
+        petBadge.textContent = `PET ACTIVE: ${fmtTime(left)}`;
+      }, 250);
+    }
+
+    // --------- Golden Goose ----------
+    function spawnGoldenGoose(){
+      const goose = document.createElement(&#34;div&#34;);
+      goose.className = &#34;duck goose golden roaming&#34;;
+      goose.innerHTML = `&lt;span class=&#34;body&#34;&gt;🪿&lt;/span&gt;&lt;span class=&#34;legs&#34;&gt;&lt;/span&gt;`;
+      duckLayer.appendChild(goose);
+
+      // Place near the counter, then it roams (does NOT follow mouse)
+      const rect = countWrap.getBoundingClientRect();
+      const mainRect = tapArea.getBoundingClientRect();
+      goose.style.left = (rect.left - mainRect.left + 160) + &#34;px&#34;;
+      goose.style.top  = (rect.top  - mainRect.top  - 40) + &#34;px&#34;;
+
+      let petInterval = null;
+      let petTimeout = null;
+
+      goose.ondblclick = (e) =&gt; {
+        e.stopPropagation();
+        if (goose.classList.contains(&#34;pet&#34;)) return;
+
+        goose.classList.remove(&#34;roaming&#34;);
+        goose.classList.add(&#34;pet&#34;);
+
+        showToast(&#34;Golden goose is your pet 🪿✨ (+3 / 3s)&#34;);
+
+        // 3 minutes countdown
+        petEndAt = Date.now() + 180000;
+        petBadge.textContent = &#34;PET ACTIVE: 3:00&#34;;
+        startPetCountdown();
+
+        // Auto-clicks: +3 taps every 3 seconds for 3 mins
+        petInterval = setInterval(() =&gt; {
+          const sess = getSession();
+          const users = loadUsers();
+          if (!sess || !users[sess.username]) return;
+          users[sess.username].taps = (users[sess.username].taps || 0) + 3;
+          saveUsers(users);
+          countEl.textContent = String(users[sess.username].taps);
+          refresh();
+        }, 3000);
+
+        petTimeout = setTimeout(() =&gt; {
+          if (petInterval) clearInterval(petInterval);
+          goose.classList.remove(&#34;pet&#34;);
+          goose.classList.add(&#34;roaming&#34;);
+          petBadge.classList.remove(&#34;show&#34;);
+          showToast(&#34;Golden goose ran away 🪿💨&#34;);
+        }, 180000);
+      };
+
+      goose.addEventListener(&#34;pointerdown&#34;, (e) =&gt; e.stopPropagation());
+      critters.push(goose);
+    }
+
+    // --------- Aggressive Red Duck ----------
+    function spawnMadDuck(){
+      const duck = document.createElement(&#34;div&#34;);
+      duck.className = &#34;duck madDuck&#34;;
+      duck.innerHTML = `&lt;span class=&#34;body&#34;&gt;🦆&lt;/span&gt;&lt;span class=&#34;legs&#34;&gt;&lt;/span&gt;`;
+
+      const hugClass = pickHugClass(activeCritterCount());
+      duck.classList.add(hugClass);
+
+      const fromLeft = Math.random() &lt; 0.5;
+      const fromTop  = Math.random() &lt; 0.5;
+      duck.style.setProperty(&#34;--fromX&#34;, fromLeft ? &#34;-240px&#34; : &#34;240px&#34;);
+      duck.style.setProperty(&#34;--fromY&#34;, fromTop  ? &#34;-160px&#34; : &#34;160px&#34;);
+      duck.classList.add(&#34;lazyWalk&#34;);
+
+      countWrap.appendChild(duck);
+      critters.push(duck);
+
+      let damageInterval = null;
+
+      setTimeout(() =&gt; {
+        duck.classList.remove(&#34;lazyWalk&#34;);
+
+        if (!blocked) setBlocked(true);
+
+        // bites score box repeatedly
+        damageInterval = setInterval(() =&gt; {
+          const sess = getSession();
+          const users = loadUsers();
+          if (!sess || !users[sess.username]) return;
+
+          users[sess.username].taps = (users[sess.username].taps || 0) - 80;
+          if (users[sess.username].taps &lt; 0) users[sess.username].taps = 0;
+          saveUsers(users);
+
+          countEl.textContent = String(users[sess.username].taps);
+
+          shakeScore();
+          showToast(&#34;😡 Red duck BITES! -80&#34;);
+          refresh();
+        }, 1700);
+      }, 1800);
+
+      // TRIPLE click to remove
+      duck.addEventListener(&#34;pointerdown&#34;, makeTripleClickHandler(() =&gt; {
+        createSadSound();
+        duck.classList.add(&#34;leaving&#34;);
+        if (damageInterval) clearInterval(damageInterval);
+
+        setTimeout(() =&gt; {
+          duck.remove();
+          critters = critters.filter(d =&gt; d !== duck);
+          if (critters.length === 0){
+            lockAfterArrival = false;
+            setBlocked(false);
+          }
+          refresh();
+        }, 900);
+      }));
+    }
+
+    // --------- Spawn invasion ----------
+    function spawnInvasion(){
+      if (isAdmin()) return;
+      if (lockAfterArrival || blocked) return;
+      lockAfterArrival = true;
+
+      // Base: 3 hugging ducks
+      for (let i = 0; i &lt; DUCKS_PER_INVASION; i++){
+        const duck = document.createElement(&#34;div&#34;);
+        duck.className = &#34;duck&#34;;
+        duck.innerHTML = `&lt;span class=&#34;body&#34;&gt;🦆&lt;/span&gt;&lt;span class=&#34;legs&#34;&gt;&lt;/span&gt;`;
+
+        const hugClass = pickHugClass(activeCritterCount() + i);
+        duck.classList.add(hugClass);
+
+        const fromLeft = Math.random() &lt; 0.5;
+        const fromTop = Math.random() &lt; 0.5;
+        duck.style.setProperty(&#34;--fromX&#34;, fromLeft ? &#34;-220px&#34; : &#34;220px&#34;);
+        duck.style.setProperty(&#34;--fromY&#34;, fromTop ? &#34;-160px&#34; : &#34;160px&#34;);
+        duck.classList.add(&#34;walking&#34;);
+
+        duck.addEventListener(&#34;pointerdown&#34;, (e) =&gt; {
+          e.stopPropagation();
+          if (duck.classList.contains(&#34;leaving&#34;)) return;
+
+          createSadSound();
+          duck.classList.remove(&#34;walking&#34;);
+          duck.classList.add(&#34;leaving&#34;);
+
+          setTimeout(() =&gt; {
+            duck.remove();
+            critters = critters.filter(d =&gt; d !== duck);
+            if (critters.length === 0){
+              lockAfterArrival = false;
+              setBlocked(false);
+            }
+            refresh();
+          }, 900);
+        });
+
+        countWrap.appendChild(duck);
+        critters.push(duck);
+
+        // After walk-in ends -&gt; LOCK
+        setTimeout(() =&gt; {
+          duck.classList.remove(&#34;walking&#34;);
+          if (lockAfterArrival &amp;&amp; !blocked){
+            setBlocked(true);
+          }
+          refresh();
+        }, 950);
+      }
+
+      // 12% chance: aggressive red duck
+      if (chance(MAD_DUCK_CHANCE)){
+        spawnMadDuck();
+      }
+
+      // 10% chance: golden goose
+      if (chance(GOOSE_CHANCE)){
+        spawnGoldenGoose();
+      }
+
+      refresh();
+    }
+
+    // --------- Auth / profile ----------
+    function refresh(){
+      const sess = getSession();
+      const users = loadUsers();
+
+      if (!sess || !users[sess.username]){
+        navUser.textContent = &#34;&#34;;
+        authLink.style.display = &#34;inline&#34;;
+        logoutLink.style.display = &#34;none&#34;;
+        statusLine.textContent = &#34;Not logged in&#34;;
+        displayNameEl.textContent = &#34;Guest&#34;;
+        countEl.textContent = &#34;0&#34;;
+        hintEl.textContent = &#34;Log in to be counted on the leaderboard.&#34;;
+        return;
+      }
+
+      const u = users[sess.username];
+      const name = u.displayName || sess.username;
+
+      navUser.textContent = isAdmin() ? `Admin: ${name}` : `Hi, ${name}`;
+      authLink.style.display = &#34;none&#34;;
+      logoutLink.style.display = &#34;inline&#34;;
+
+      if (isAdmin()){
+        statusLine.textContent = &#34;Admin mode (no ducks). Tap freely.&#34;;
+        hintEl.textContent = &#34;You are immune to invasions.&#34;;
+      } else if (blocked){
+        statusLine.textContent = &#34;Ducks are hugging the counter!&#34;;
+        hintEl.textContent = &#34;Background locked. Tap ducks to make them leave :(&#34;;
+      } else {
+        statusLine.textContent = &#34;Tap anywhere!&#34;;
+        hintEl.textContent = &#34;Tap/click anywhere to add +1&#34;;
+      }
+
+      countEl.textContent = String(u.taps || 0);
+      displayNameEl.textContent = name;
+    }
+
+    logoutLink.addEventListener(&#34;click&#34;, (e) =&gt; {
+      e.preventDefault();
+      clearSession();
+
+      setBlocked(false);
+      lockAfterArrival = false;
+
+      // remove all critters
+      critters.forEach(d =&gt; d.remove());
+      critters = [];
+
+      // stop pet timer
+      if (petTimer) clearInterval(petTimer);
+      petTimer = null;
+      petBadge.classList.remove(&#34;show&#34;);
+
+      refresh();
+      showToast(&#34;Logged out&#34;);
+    });
+
+    // --------- Tap logic ----------
+    tapArea.addEventListener(&#34;pointerdown&#34;, (e) =&gt; {
+      const tag = (e.target &amp;&amp; e.target.tagName) ? e.target.tagName.toLowerCase() : &#34;&#34;;
+      if ([&#34;a&#34;,&#34;button&#34;,&#34;input&#34;,&#34;label&#34;].includes(tag)) return;
+
+      const sess = getSession();
+      const users = loadUsers();
+      if (!sess || !users[sess.username]){
+        showToast(&#34;Log in first to start counting!&#34;);
+        return;
+      }
+
+      if (blocked &amp;&amp; !isAdmin()){
+        showToast(&#34;Tap the ducks to make them leave :(&#34;);
+        return;
+      }
+
+      users[sess.username].taps = (users[sess.username].taps || 0) + 1;
+      saveUsers(users);
+      countEl.textContent = String(users[sess.username].taps);
+
+      const taps = users[sess.username].taps;
+      const checkpoint = Math.floor(taps / TAP_STEP);
+      if (!isAdmin() &amp;&amp; checkpoint &gt; lastSpawnCheckpoint){
+        lastSpawnCheckpoint = checkpoint;
+        spawnInvasion();
+      }
+
+      refresh();
+    });
+
+    // Init
+    setBlocked(false);
+    refresh();
+    </script>
+  </body>
+</html>
